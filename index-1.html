@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#101a3a">
+<title>Sky Hopper — Tiny Wings, Big Adventure</title>
+<style>
+  :root { color-scheme: dark; --ink:#f8fbff; --panel:rgba(14,24,54,.82); --line:rgba(255,255,255,.18); }
+  * { box-sizing:border-box; }
+  html,body { margin:0; width:100%; min-height:100%; background:#101a3a; color:var(--ink); font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  body { min-height:100dvh; display:grid; place-items:center; padding:12px; overflow:hidden; }
+  .app { width:min(100%,520px); }
+  header { display:flex; justify-content:space-between; align-items:center; gap:10px; margin:0 2px 10px; }
+  .brand { font-weight:900; letter-spacing:.02em; font-size:clamp(20px,5vw,28px); }
+  .brand span { color:#75f1e4; }
+  .tiny { color:#b8c7ef; font-size:12px; }
+  .hud { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .pill { background:rgba(255,255,255,.09); border:1px solid var(--line); border-radius:999px; padding:7px 11px; font-size:13px; font-weight:750; }
+  .stage { position:relative; width:100%; aspect-ratio: 4 / 5; max-height:76dvh; min-height:340px; overflow:hidden; border-radius:24px; border:1px solid rgba(255,255,255,.22); box-shadow:0 20px 60px #0006; background:#6bd9ed; touch-action:manipulation; }
+  canvas { display:block; width:100%; height:100%; }
+  .overlay { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:22px; background:linear-gradient(180deg,rgba(9,18,48,.08),rgba(9,18,48,.42)); }
+  .panel { width:min(100%,340px); padding:22px; text-align:center; border:1px solid var(--line); border-radius:22px; background:var(--panel); backdrop-filter:blur(12px); box-shadow:0 12px 40px #0003; }
+  h1 { margin:0 0 6px; font-size:clamp(26px,7vw,36px); line-height:1.05; }
+  .panel p { margin:8px 0 16px; color:#d3defd; font-size:14px; line-height:1.45; }
+  .row { display:flex; gap:8px; }
+  button,select { font:inherit; color:var(--ink); border:1px solid var(--line); border-radius:13px; padding:11px 12px; background:rgba(255,255,255,.1); font-weight:750; }
+  button { cursor:pointer; touch-action:manipulation; }
+  button:active { transform:scale(.98); }
+  .primary { width:100%; border:0; color:#102044; background:linear-gradient(100deg,#8ff8df,#ffe27a); font-size:16px; }
+  .smallbtn { flex:1; font-size:13px; }
+  .settings { display:grid; grid-template-columns:1fr 1fr; gap:10px; text-align:left; margin:14px 0; }
+  label { display:grid; gap:5px; font-size:12px; color:#cbd8fb; }
+  select { width:100%; font-size:13px; padding:9px; }
+  .hidden { display:none !important; }
+  .bottom { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; }
+  .bottom button { font-size:12px; padding:8px 10px; }
+  .hint { text-align:center; margin-top:8px; font-size:12px; color:#aab9e4; }
+  @media (max-height:620px) { body { padding:5px; } header { margin-bottom:5px; } .stage { max-height:72dvh; min-height:280px; } .hint { display:none; } }
+</style>
+</head>
+<body>
+<main class="app">
+  <header>
+    <div><div class="brand">SKY <span>HOPPER</span></div><div class="tiny">Tiny wings. Big adventure.</div></div>
+    <div class="hud"><div class="pill">⭐ <span id="score">0</span></div><div class="pill">BEST <span id="best">0</span></div></div>
+  </header>
+  <section class="stage" id="stage" aria-label="Sky Hopper game area">
+    <canvas id="game" aria-label="Sky Hopper gameplay"></canvas>
+    <div class="overlay" id="menu">
+      <div class="panel">
+        <h1 id="title">Ready to<br>hop?</h1>
+        <p id="message">Tap or press Space to flap through the sky rings. Collect stars and avoid the cloud towers!</p>
+        <div class="settings" id="settings">
+          <label>Hopper skin
+            <select id="skin"><option value="mint">Mint Comet</option><option value="sunset">Sunset</option><option value="berry">Berry Pop</option><option value="gold">Golden Glow</option></select>
+          </label>
+          <label>Sky theme
+            <select id="theme"><option value="day">Candy Day</option><option value="dusk">Peach Dusk</option><option value="space">Cosmic Night</option></select>
+          </label>
+          <label>Difficulty
+            <select id="difficulty"><option value="calm">Calm</option><option value="classic" selected>Classic</option><option value="swift">Swift</option></select>
+          </label>
+          <label>Sound
+            <select id="sound"><option value="on">On</option><option value="off">Off</option></select>
+          </label>
+        </div>
+        <button class="primary" id="start">START HOPPING</button>
+        <div class="row" style="margin-top:9px"><button class="smallbtn" id="how">HOW TO PLAY</button><button class="smallbtn" id="resetBest">RESET BEST</button></div>
+      </div>
+    </div>
+    <div class="overlay hidden" id="pause">
+      <div class="panel"><h1>Paused ⏸️</h1><p>Take a breather, hopper.</p><button class="primary" id="resume">RESUME</button><div style="height:8px"></div><button class="smallbtn" id="quit">BACK TO MENU</button></div>
+    </div>
+  </section>
+  <div class="bottom">
+    <button id="pauseBtn">⏸ Pause</button>
+    <div class="tiny">Stars collected: <b id="stars">0</b></div>
+    <button id="menuBtn">☰ Menu</button>
+  </div>
+  <div class="hint">Touch anywhere in the game to hop • Avoid the glowing towers • Works offline after loading</div>
+</main>
+<script>
+(() => {
+  "use strict";
+  const canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
+  const stage = document.getElementById("stage");
+  const $ = id => document.getElementById(id);
+  const colors = {
+    mint: ["#7af2d2","#18a99c"], sunset: ["#ffcf75","#ff7b79"],
+    berry: ["#ffb2e1","#bb65ff"], gold: ["#fff0a0","#e5a82e"]
+  };
+  const themes = {
+    day: {top:"#54c9ed",bottom:"#d8fff1",sun:"#fff3a6",hill:"#8adbbf",hill2:"#43b9b2",ob:"#ff8b78",ob2:"#ffcc78",star:"#fff07a"},
+    dusk:{top:"#5b5baf",bottom:"#ffb7a1",sun:"#ffe1a0",hill:"#b67ec4",hill2:"#7658a8",ob:"#ff8c9e",ob2:"#ffd08b",star:"#fff2a0"},
+    space:{top:"#10183f",bottom:"#473a79",sun:"#b6f2ff",hill:"#343b79",hill2:"#202858",ob:"#8b91ff",ob2:"#6ff3df",star:"#fff3a0"}
+  };
+  let W=400,H=500,dpr=1, state="menu", last=0, score=0, stars=0, time=0, pipes=[], particles=[], clouds=[], bgStars=[];
+  let best=Number(localStorage.getItem("skyHopperBest")||0);
+  let settings={skin:"mint",theme:"day",difficulty:"classic",sound:"on"};
+  let bird={x:105,y:220,vy:0,r:15,rot:0}, audioCtx=null, elapsed=0;
+  $("best").textContent=best;
+
+  function resize(){
+    const rect=stage.getBoundingClientRect(); dpr=Math.min(window.devicePixelRatio||1,2);
+    W=rect.width; H=rect.height; canvas.width=Math.round(W*dpr); canvas.height=Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    bird.x=W*.27; if(state==="menu"){bird.y=H*.42;}
+    clouds=Array.from({length:7},(_,i)=>({x:(i/7)*W,y:(i*73+25)%H,s:.55+(i%3)*.28}));
+    bgStars=Array.from({length:55},()=>({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.7+.4}));
+  }
+  window.addEventListener("resize",resize); resize();
+
+  function sound(kind){
+    if(settings.sound==="off") return;
+    try{
+      audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+      if(audioCtx.state==="suspended") audioCtx.resume();
+      const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      const now=audioCtx.currentTime;
+      const freq=kind==="star"?880:kind==="hit"?125:kind==="flap"?420:620;
+      osc.type=kind==="hit"?"sawtooth":"sine"; osc.frequency.setValueAtTime(freq,now);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(55,freq*.62),now+.12);
+      gain.gain.setValueAtTime(.08,now); gain.gain.exponentialRampToValueAtTime(.001,now+.14);
+      osc.start(now); osc.stop(now+.15);
+    }catch(e){}
+  }
+  function syncSettings(){
+    settings.skin=$("skin").value; settings.theme=$("theme").value; settings.difficulty=$("difficulty").value; settings.sound=$("sound").value;
+  }
+  ["skin","theme","difficulty","sound"].forEach(id=>$(id).addEventListener("change",syncSettings));
+  function resetGame(){
+    score=0;stars=0;elapsed=0;time=0;pipes=[];particles=[];
+    bird={x:W*.27,y:H*.42,vy:0,r:Math.max(12,Math.min(16,W*.038)),rot:0};
+    $("score").textContent=score;$("stars").textContent=stars;
+    addPipe(W+60);
+  }
+  function addPipe(x){
+    const gapSize= settings.difficulty==="calm" ? H*.31 : settings.difficulty==="swift" ? H*.235 : H*.27;
+    const margin=H*.13, center=margin+Math.random()*(H-2*margin);
+    const w=Math.max(48,W*.14);
+    pipes.push({x,w,center,gap:gapSize,passed:false,starTaken:false,starX:x+w+Math.min(35,W*.08),starY:center+(Math.random()-.5)*gapSize*.5});
+  }
+  function flap(){
+    if(state==="menu"||state==="over"){startGame();return;}
+    if(state!=="playing")return;
+    bird.vy=-H*.78; bird.rot=-.38; sound("flap");
+    for(let i=0;i<5;i++)particles.push({x:bird.x-10,y:bird.y+4,vx:-Math.random()*65-20,vy:(Math.random()-.5)*90,life:.35,r:Math.random()*3+1,color:colors[settings.skin][0]});
+  }
+  function startGame(){syncSettings();resetGame();state="playing";$("menu").classList.add("hidden");$("pause").classList.add("hidden");last=performance.now();sound("flap");}
+  function showMenu(over=false){
+    state=over?"over":"menu";$("pause").classList.add("hidden");$("menu").classList.remove("hidden");
+    $("settings").classList.toggle("hidden",over);
+    $("title").innerHTML=over?"Flight over!":"Ready to<br>hop?";
+    $("message").textContent=over?`You scored ${score} point${score===1?"":"s"} and collected ${stars} star${stars===1?"":"s"}. Give it another go!`:"Tap or press Space to flap through the sky rings. Collect stars and avoid the cloud towers!";
+    $("start").textContent=over?"PLAY AGAIN":"START HOPPING";
+  }
+  function pauseGame(){if(state==="playing"){state="paused";$("pause").classList.remove("hidden");} }
+  function resumeGame(){if(state==="paused"){state="playing";$("pause").classList.add("hidden");last=performance.now();}}
+  function endGame(){if(state!=="playing")return;state="over";sound("hit");if(score>best){best=score;localStorage.setItem("skyHopperBest",String(best));$("best").textContent=best;}showMenu(true);}
+  function circle(x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
+  function drawBackground(dt){
+    const t=themes[settings.theme],g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,t.top);g.addColorStop(1,t.bottom);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+    if(settings.theme==="space"){
+      ctx.save();bgStars.forEach((s,i)=>{ctx.globalAlpha=.35+.5*(.5+.5*Math.sin(time*1.5+i));circle(s.x,s.y,s.r,"#fff");});ctx.restore();
+      circle(W*.78,H*.16,Math.min(W,H)*.07,"#d8d5ff");circle(W*.81,H*.14,Math.min(W,H)*.07,t.top);
+    }else{
+      circle(W*.78,H*.15,Math.min(W,H)*.075,t.sun);
+      ctx.save();ctx.globalAlpha=.28;
+      clouds.forEach((c,i)=>{const x=((c.x-time*10*c.s)%(W+100)+W+100)%(W+100)-30;drawCloud(x,c.y,c.s,"#fff");});ctx.restore();
+    }
+    // distant rolling hills
+    ctx.fillStyle=t.hill;
+    ctx.beginPath();ctx.moveTo(0,H*.82);
+    for(let x=0;x<=W+20;x+=20)ctx.lineTo(x,H*.76+Math.sin(x*.018+time*.45)*H*.035+Math.sin(x*.038)*H*.018);
+    ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.fill();
+    ctx.fillStyle=t.hill2;ctx.beginPath();ctx.moveTo(0,H*.9);
+    for(let x=0;x<=W+20;x+=20)ctx.lineTo(x,H*.86+Math.sin(x*.015-time*.55+1)*H*.035);
+    ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.fill();
+    // tiny floating sparkles
+    if(settings.theme!=="space"){ctx.globalAlpha=.45;for(let i=0;i<12;i++){const x=(i*97-time*17%(W+50)+W+50)%(W+50),y=(i*61+time*8)%H;circle(x,y,1.3,"#fff");}ctx.globalAlpha=1;}
+  }
+  function drawCloud(x,y,s,color){
+    ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,15*s,0,7);ctx.arc(x+17*s,y-8*s,19*s,0,7);ctx.arc(x+38*s,y,13*s,0,7);ctx.fill();
+  }
+  function roundedRect(x,y,w,h,r,fill){
+    ctx.fillStyle=fill;ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath();ctx.fill();
+  }
+  function drawPipe(p){
+    const t=themes[settings.theme], topH=p.center-p.gap/2, bottomY=p.center+p.gap/2;
+    const grad=ctx.createLinearGradient(p.x,0,p.x+p.w,0);grad.addColorStop(0,t.ob);grad.addColorStop(.5,t.ob2);grad.addColorStop(1,t.ob);
+    // whimsical crystal/cloud towers
+    roundedRect(p.x,-10,p.w,topH+10,Math.min(14,p.w*.25),grad);
+    roundedRect(p.x-5,topH-13,p.w+10,13,7,t.ob2);
+    roundedRect(p.x,bottomY,p.w,H-bottomY+10,Math.min(14,p.w*.25),grad);
+    roundedRect(p.x-5,bottomY,p.w+10,13,7,t.ob2);
+    // glints
+    ctx.globalAlpha=.3;roundedRect(p.x+p.w*.22,8,p.w*.12,Math.max(0,topH-18),4,"#fff");roundedRect(p.x+p.w*.22,bottomY+20,p.w*.12,Math.max(0,H-bottomY-30),4,"#fff");ctx.globalAlpha=1;
+    if(!p.starTaken){
+      const sy=p.starY;
+      ctx.save();ctx.translate(p.starX,sy);ctx.rotate(time*2);ctx.shadowBlur=14;ctx.shadowColor=t.star;ctx.fillStyle=t.star;ctx.beginPath();
+      for(let i=0;i<10;i++){const r=i%2===0?9:4.2,a=-Math.PI/2+i*Math.PI/5;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);}ctx.closePath();ctx.fill();ctx.restore();
+    }
+  }
+  function drawBird(){
+    const [main,shade]=colors[settings.skin];
+    ctx.save();ctx.translate(bird.x,bird.y);ctx.rotate(Math.max(-.55,Math.min(.8,bird.rot)));
+    // tiny comet tail
+    ctx.globalAlpha=.45;const tail=ctx.createLinearGradient(-28,0,-8,0);tail.addColorStop(0,"transparent");tail.addColorStop(1,main);ctx.fillStyle=tail;ctx.beginPath();ctx.moveTo(-9,0);ctx.lineTo(-31,-5);ctx.lineTo(-24,3);ctx.lineTo(-31,9);ctx.closePath();ctx.fill();ctx.globalAlpha=1;
+    ctx.shadowColor=main;ctx.shadowBlur=12;circle(0,0,bird.r,main);ctx.shadowBlur=0;
+    circle(-3,4,bird.r*.63,shade);
+    // wing
+    ctx.save();ctx.translate(-4,2);ctx.rotate(Math.sin(time*17)*.4);ctx.fillStyle="#ffffffb8";ctx.beginPath();ctx.ellipse(-4,1,bird.r*.55,bird.r*.28,-.3,0,Math.PI*2);ctx.fill();ctx.restore();
+    // eye and beak
+    circle(6,-5,3.5,"#fff");circle(7,-5,1.6,"#17264b");
+    ctx.fillStyle="#ff8e69";ctx.beginPath();ctx.moveTo(bird.r-2,-1);ctx.lineTo(bird.r+8,2);ctx.lineTo(bird.r-2,5);ctx.closePath();ctx.fill();
+    // tiny head tuft
+    ctx.strokeStyle=main;ctx.lineWidth=3;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(-2,-bird.r+3);ctx.quadraticCurveTo(-8,-bird.r-6,-12,-bird.r-2);ctx.stroke();
+    ctx.restore();
+  }
+  function update(dt){
+    time+=dt;
+    if(state!=="playing")return;
+    elapsed+=dt;
+    const speed=(settings.difficulty==="calm"?W*.39:settings.difficulty==="swift"?W*.53:W*.45)*(1+Math.min(elapsed/95,.35));
+    bird.vy+=H*1.8*dt;bird.y+=bird.vy*dt;bird.rot=Math.min(.9,bird.rot+dt*1.8);
+    if(bird.y-bird.r<0||bird.y+bird.r>H*.96){endGame();return;}
+    for(const p of pipes){
+      p.x-=speed*dt;p.starX-=speed*dt;
+      if(!p.passed&&p.x+p.w<bird.x){p.passed=true;score++;$("score").textContent=score;sound("point");}
+      if(!p.starTaken&&Math.hypot(bird.x-p.starX,bird.y-p.starY)<bird.r+10){p.starTaken=true;stars++;$("stars").textContent=stars;sound("star");for(let i=0;i<9;i++)particles.push({x:p.starX,y:p.starY,vx:(Math.random()-.5)*100,vy:(Math.random()-.5)*100,life:.5,r:Math.random()*3+1,color:themes[settings.theme].star});}
+      const topH=p.center-p.gap/2,bottomY=p.center+p.gap/2;
+      if(bird.x+bird.r>p.x&&bird.x-bird.r<p.x+p.w&&(bird.y-bird.r<topH||bird.y+bird.r>bottomY)){endGame();return;}
+    }
+    pipes=pipes.filter(p=>p.x+p.w>-30);
+    if(pipes.length===0||pipes[pipes.length-1].x<W*.58)addPipe(W+20);
+    particles.forEach(p=>{p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt;});particles=particles.filter(p=>p.life>0);
+  }
+  function render(dt){
+    drawBackground(dt);
+    pipes.forEach(drawPipe);
+    particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life*2);circle(p.x,p.y,p.r,p.color);});ctx.globalAlpha=1;
+    drawBird();
+    if(state==="menu"){ctx.globalAlpha=.15;for(let i=0;i<3;i++)circle(W*.7+i*8,H*.44,3,"#fff");ctx.globalAlpha=1;}
+  }
+  function loop(now){const dt=Math.min(.033,(now-(last||now))/1000);last=now;update(dt);render(dt);requestAnimationFrame(loop);}
+  requestAnimationFrame(loop);
+  $("start").addEventListener("click",startGame);$("resume").addEventListener("click",resumeGame);
+  $("pauseBtn").addEventListener("click",()=>state==="playing"?pauseGame():state==="paused"?resumeGame():null);
+  $("menuBtn").addEventListener("click",()=>showMenu(false));$("quit").addEventListener("click",()=>showMenu(false));
+  $("how").addEventListener("click",()=>{$("message").textContent="Tap the play area to hop. Pass each tower pair for 1 point, touch a glowing star for a bonus collectible, and don't hit towers or the top/bottom edges. Pick your colors before starting!";});
+  $("resetBest").addEventListener("click",()=>{best=0;localStorage.removeItem("skyHopperBest");$("best").textContent="0";});
+  stage.addEventListener("pointerdown",e=>{if(e.target.closest("button,select"))return;if(state==="playing")flap();});
+  window.addEventListener("keydown",e=>{
+    if(e.code==="Space"||e.code==="ArrowUp"){e.preventDefault();if(state==="playing")flap();else if(state==="menu"||state==="over")startGame();}
+    if(e.code==="Escape"||e.code==="KeyP"){if(state==="playing")pauseGame();else if(state==="paused")resumeGame();}
+  });
+  // Start screen's idle hopper gently floats.
+  setInterval(()=>{if(state==="menu"){bird.y=H*.42+Math.sin(performance.now()/350)*7;bird.rot=Math.sin(performance.now()/500)*.08;}},40);
+})();
+</script>
+</body>
+</html>
